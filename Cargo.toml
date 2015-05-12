@@ -1,0 +1,9 @@
+[package]
+
+name = "Sudoku"
+version = "0.0.1"
+authors = ["Daniel <dpiros@comcast.net>"]
+
+[[bin]]
+
+name = "Sudoku"
