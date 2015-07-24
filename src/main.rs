@@ -3,6 +3,8 @@ use utils::print_puzzle;
 use utils::load_puzzle;
 use utils::puzzles_equal;
 use utils::has_mistake;
+use utils::get_other_numbers_in_row;
+use utils::get_other_numbers_in_column;
 use utils::get_other_numbers_in_box;
 
 /*
@@ -28,17 +30,23 @@ terminology: (see https://en.wikipedia.org/wiki/Glossary_of_Sudoku)
 
 fn main() {
 	
-	let mut puzzle = load_puzzle("easy.puz");
-	let solution = load_puzzle("easy_solution.puz");
+	let mut puzzle = load_puzzle("medium.puz");
+	let solution = load_puzzle("medium_solution.puz");
 	
 	print_puzzle(puzzle);
 	
 	let mut made_progress = true;
-	while(made_progress)
+	while made_progress
 	{
 		made_progress = false;
 		
 		for i in 0..9 {
+			if solve_row(&mut puzzle, i) {
+				made_progress = true;
+			}
+			if solve_column(&mut puzzle, i) {
+				made_progress = true;
+			}
 			for j in 0..9 {
 				if solve_cell(&mut puzzle, i, j) {
 					made_progress = true;
@@ -62,28 +70,187 @@ fn main() {
 	
 }
 
+// Attempts to solve the given row. Returns true if it solved at least one cell.
+fn solve_row(puzzle : &mut [[usize; 9]; 9], row:usize) -> bool
+{
+	let mut cells_filled = 0;	// To keep track of how many cells we managed to fill.
+	
+	// determine what values are already taken.
+	let mut values_taken: Vec<usize> = Vec::new();
+	for i in 0..9 {
+		if puzzle[row][i] != 0 {
+			values_taken.push(puzzle[row][i]);
+		}
+	}
+	
+	// Determine which values are still needed.
+	let mut values_needed: Vec<usize> = Vec::new();
+	for value in 1usize..10usize {
+		let mut taken = false;
+		for &i in values_taken.iter() {
+			if i == value {
+				taken = true;
+				break;
+			}
+		}
+		if !taken {
+			values_needed.push(value);
+		}
+	}
+	
+	if values_needed.len() == 0 {
+		return false;	// no blank spaces left to fill in
+	}
+	if values_needed.len() == 1 {
+		// only one space is blank. Find it, and fill it in.
+		for i in 0..9 {
+			if puzzle[row][i] == 0 {
+				puzzle[row][i] = values_needed[0];
+				//println!("Filling in {} in row {}, column {}", values_needed[0], row, i);
+				return true;
+			}
+		}
+	}
+	
+	// Go through the values we need, and check each available spot to see if that value could go there. If there's only spot that can accomodate that value, then it must go there.
+	for &value in values_needed.iter() {
+		let mut possible_cells: Vec<usize> = Vec::new();
+		for col in 0..9 {
+			if puzzle[row][col] != 0 {
+				continue;	// cell already taken.
+			}
+			
+			let mut taken = false;
+			for &i in get_other_numbers_in_column(puzzle, row, col).iter() {
+				if i == value {
+					taken = true;	// value already exists in column.
+					break;
+				}
+			}
+			for &i in get_other_numbers_in_box(puzzle, row, col).iter() {
+				if i == value {
+					taken = true;	// value already exists in box
+					break;
+				}
+			}
+			if !taken {
+				possible_cells.push(col);	
+			}
+		}
+		
+		if possible_cells.len() == 1 {
+			// Only one place this value can go.
+			puzzle[row][possible_cells[0]] = value;
+			cells_filled += 1;
+			//println!("Filling in a cell");
+		}
+	}
+	
+	return cells_filled != 0;
+}
+
+// Attempts to solve the given column. Returns true if it solved at least one cell.
+fn solve_column(puzzle : &mut [[usize; 9]; 9], column:usize) -> bool
+{
+	let mut cells_filled = 0;	// To keep track of how many cells we managed to fill.
+	
+	// determine what values are already taken.
+	let mut values_taken: Vec<usize> = Vec::new();
+	for i in 0..9 {
+		if puzzle[i][column] != 0 {
+			values_taken.push(puzzle[i][column]);
+		}
+	}
+	
+	// Determine which values are still needed.
+	let mut values_needed: Vec<usize> = Vec::new();
+	for value in 1usize..10usize {
+		let mut taken = false;
+		for &i in values_taken.iter() {
+			if i == value {
+				taken = true;
+				break;
+			}
+		}
+		if !taken {
+			values_needed.push(value);
+		}
+	}
+	
+	if values_needed.len() == 0 {
+		return false;	// no blank spaces left to fill in
+	}
+	if values_needed.len() == 1 {
+		// only one space is blank. Find it, and fill it in.
+		for i in 0..9 {
+			if puzzle[i][column] == 0 {
+				puzzle[i][column] = values_needed[0];
+				//println!("Filling in {} in row {}, column {}", values_needed[0], row, i);
+				return true;
+			}
+		}
+	}
+	
+	// Go through the values we need, and check each available spot to see if that value could go there. If there's only spot that can accomodate that value, then it must go there.
+	for &value in values_needed.iter() {
+		let mut possible_cells: Vec<usize> = Vec::new();
+		for row in 0..9 {
+			if puzzle[row][column] != 0 {
+				continue;	// cell already taken.
+			}
+			
+			let mut taken = false;
+			for &i in get_other_numbers_in_row(puzzle, row, column).iter() {
+				if i == value {
+					taken = true;	// value already exists in row.
+					break;
+				}
+			}
+			for &i in get_other_numbers_in_box(puzzle, row, column).iter() {
+				if i == value {
+					taken = true;	// value already exists in box
+					break;
+				}
+			}
+			if !taken {
+				possible_cells.push(row);	
+			}
+		}
+		
+		if possible_cells.len() == 1 {
+			// Only one place this value can go.
+			puzzle[possible_cells[0]][column] = value;
+			cells_filled += 1;
+			//println!("Filling in a cell");
+		}
+	}
+	
+	return cells_filled != 0;
+}
+
+
 
 
 // Tries to solve a single cell. Returns true if it managed to solve the cell.
 fn solve_cell(puzzle : &mut [[usize; 9]; 9], row:usize, column:usize) -> bool {
 	
-	if(puzzle[row][column] != 0) {
+	if puzzle[row][column] != 0 {
 		return false;	// cell is already solved
 	}
 
 	let mut value_is_taken : [bool; 10] = [false,false,false,false,false,false,false,false,false,false];
 	
-	for i in 0..9 {
-		if puzzle[row][i] != 0 {
-			let value = puzzle[row][i];
-			value_is_taken[value] = true;
-		}
-		if puzzle[i][column] != 0 {
-			let value = puzzle[i][column];
-			value_is_taken[value] = true;
+	// Check what numbers are in the cell's row, column, and box.
+	for &i in get_other_numbers_in_row(puzzle, row, column).iter() {
+		if i != 0 {
+			value_is_taken[i] = true;
 		}
 	}
-	// Check the 3x3 box as well.
+	for &i in get_other_numbers_in_column(puzzle, row, column).iter() {
+		if i != 0 {
+			value_is_taken[i] = true;
+		}
+	}
 	for &i in get_other_numbers_in_box(puzzle, row, column).iter() {
 		if i != 0 {
 			value_is_taken[i] = true;
